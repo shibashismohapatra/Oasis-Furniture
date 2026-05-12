@@ -5,6 +5,14 @@ export type AnalyticsEvent =
   | 'monthly_offer_click'
   | 'collection_card_click'
   | 'product_card_click'
+  | 'contact_page_action'
+  | 'project_inquiry'
+  | 'cta_section_click'
+  | 'product_category_click'
+  | 'offer_popup_close'
+  | 'offer_popup_claim'
+  | 'social_bar_click'
+  | 'hotspot_click'
 
 export function trackEvent(event: AnalyticsEvent, properties?: Record<string, any>) {
   if (typeof window !== 'undefined' && window.gtag) {
