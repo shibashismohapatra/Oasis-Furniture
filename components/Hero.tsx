@@ -1,15 +1,30 @@
 'use client'
 
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import Image from 'next/image'
-import PrimaryButton from './PrimaryButton'
-import SecondaryButton from './SecondaryButton'
 import { mainShowroom } from '@/config/showrooms'
 import { getWhatsAppLink } from '@/lib/contact'
 import { trackEvent } from '@/lib/analytics'
 import { monthlyOffer } from '@/config/monthlyOffer'
 
+const heroImages = [
+  'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=1600&q=80',
+  'https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?w=1600&q=80',
+  'https://images.unsplash.com/photo-1484154218962-a197022b5858?w=1600&q=80',
+  'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=1600&q=80',
+  'https://images.unsplash.com/photo-1513694203232-719a280e022f?w=1600&q=80'
+]
+
 export default function Hero() {
+  const [currentSlide, setCurrentSlide] = useState(0)
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % heroImages.length)
+    }, 5000)
+    return () => clearInterval(timer)
+  }, [])
+
   const handleDirectionsClick = () => {
     trackEvent('cta_directions_click', { source: 'hero' })
   }
@@ -19,78 +34,80 @@ export default function Hero() {
   }
 
   return (
-    <section className="relative bg-neutral-900 text-white">
-      <div className="absolute inset-0">
-        <Image
-          src="https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=1600&q=80"
-          alt="Premium Furniture Showroom"
-          fill
-          className="object-cover opacity-40"
-          priority
-        />
+    <section className="relative h-[85vh] flex items-center overflow-hidden bg-neutral-900">
+      {/* Background Slider */}
+      <div className="absolute inset-0 z-0">
+        {heroImages.map((img, idx) => (
+          <div
+            key={idx}
+            className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
+              idx === currentSlide ? 'opacity-50' : 'opacity-0'
+            }`}
+          >
+            <Image
+              src={img}
+              alt={`Premium Furniture Showroom ${idx + 1}`}
+              fill
+              className="object-cover"
+              priority={idx === 0}
+            />
+          </div>
+        ))}
+        {/* Cinematic Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent" />
       </div>
       
-      <div className="relative container mx-auto px-4 py-32 md:py-40">
-        <div className="max-w-3xl">
+      <div className="relative z-10 container mx-auto px-4">
+        <div className="max-w-4xl">
           {monthlyOffer.isActive && (
-            <div className="inline-block bg-brand-gold text-brand-black px-4 py-2 rounded-sm text-sm font-medium mb-6">
-              ✨ {monthlyOffer.title} - {monthlyOffer.discount}
+            <div className="inline-flex items-center gap-3 bg-brand-gold/10 backdrop-blur-md border border-brand-gold/30 text-brand-gold px-6 py-2 rounded-full text-xs font-bold mb-8 animate-fade-in uppercase tracking-widest">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-gold opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-brand-gold"></span>
+              </span>
+              {monthlyOffer.title}: {monthlyOffer.discount}
             </div>
           )}
           
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-serif mb-6 text-balance">
-            Premium Furniture Showroom in <span className="text-brand-gold">Bhubaneswar</span>
+          <h1 className="text-5xl md:text-7xl lg:text-8xl font-serif text-white mb-8 leading-[1.1]">
+            Curating <span className="text-brand-gold italic">Luxury</span> <br /> 
+            For Your Home.
           </h1>
           
-          <p className="text-xl md:text-2xl text-neutral-300 mb-4">
-            Sofas, Dining, Beds & Drapes — crafted for comfort and style
+          <p className="text-xl md:text-2xl text-neutral-300 mb-12 max-w-2xl leading-relaxed font-light">
+            Discover a world of premium sofas, dining sets, and bespoke beds — where every piece is a masterpiece of comfort and style.
           </p>
-          
-          <div className="flex flex-wrap gap-3 text-sm text-neutral-400 mb-8">
-            <span className="flex items-center">
-              <svg className="w-4 h-4 mr-2 text-brand-gold" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-              </svg>
-              Customization
-            </span>
-            <span className="flex items-center">
-              <svg className="w-4 h-4 mr-2 text-brand-gold" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-              </svg>
-              Expert Consultation
-            </span>
-            <span className="flex items-center">
-              <svg className="w-4 h-4 mr-2 text-brand-gold" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-              </svg>
-              Installation Support
-            </span>
-          </div>
 
-          <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex flex-col sm:flex-row gap-6">
             <a
               href={mainShowroom.googleMapsUrl}
               onClick={handleDirectionsClick}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center justify-center px-8 py-4 bg-white text-brand-black font-medium rounded-sm hover:bg-neutral-100 transition-colors"
+              className="bg-brand-gold text-brand-black px-12 py-5 rounded-full font-bold text-xs tracking-[0.3em] hover:bg-white transition-all duration-500 uppercase shadow-2xl shadow-brand-gold/20 text-center"
             >
-              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-              Get Directions
+              Visit Showroom
             </a>
             <a
-              href={getWhatsAppLink()}
+              href={getWhatsAppLink('Hello Oasis, I am interested in exploring your furniture collections.')}
               onClick={handleWhatsAppClick}
-              className="inline-flex items-center justify-center px-8 py-4 border-2 border-white text-white font-medium rounded-sm hover:bg-white hover:text-brand-black transition-colors"
+              className="bg-white/10 backdrop-blur-md border border-white/20 text-white px-12 py-5 rounded-full font-bold text-xs tracking-[0.3em] hover:bg-white hover:text-brand-black transition-all duration-500 uppercase text-center"
             >
-              <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-              </svg>
-              WhatsApp Us
+              Inquire Now
             </a>
+          </div>
+
+          {/* Slider Indicators */}
+          <div className="absolute bottom-12 left-4 flex gap-3">
+            {heroImages.map((_, idx) => (
+              <button
+                key={idx}
+                onClick={() => setCurrentSlide(idx)}
+                className={`h-1 transition-all duration-500 rounded-full ${
+                  idx === currentSlide ? 'w-12 bg-brand-gold' : 'w-6 bg-white/20 hover:bg-white/40'
+                }`}
+              />
+            ))}
           </div>
         </div>
       </div>

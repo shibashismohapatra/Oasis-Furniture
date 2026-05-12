@@ -3,7 +3,7 @@ import { Inter, Playfair_Display } from 'next/font/google'
 import './globals.css'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
-import WhatsAppFloatingButton from '@/components/WhatsAppFloatingButton'
+import FloatingSocialBar from '@/components/FloatingSocialBar'
 import OfferBanner from '@/components/OfferBanner'
 
 const inter = Inter({ 
@@ -30,13 +30,12 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${inter.variable} ${playfair.variable}`}>
       <body className="font-sans antialiased">
-        <OfferBanner />
         <Header />
         <main className="min-h-screen">
           {children}
         </main>
         <Footer />
-        <WhatsAppFloatingButton />
+        <FloatingSocialBar />
       </body>
     </html>
   )

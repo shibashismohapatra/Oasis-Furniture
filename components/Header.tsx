@@ -1,19 +1,41 @@
 'use client'
 
-import React from 'react'
+import React, { useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { mainShowroom } from '@/config/showrooms'
 import { getWhatsAppLink, getCallLink } from '@/lib/contact'
 import { trackEvent } from '@/lib/analytics'
 
+const productCategories = [
+  { name: 'Beds', href: '/collections/beds' },
+  { name: 'Bed Side Table', href: '/collections/bed-side-table' },
+  { name: 'Sofa Sets', href: '/collections/sofa-sets' },
+  { name: 'Center Tables', href: '/collections/center-tables' },
+  { name: 'Dining Sets', href: '/collections/dining-sets' },
+  { name: 'Dining Chairs', href: '/collections/dining-chairs' },
+  { name: 'Uncategorized', href: '/collections/uncategorized' },
+  
+]
+
 export default function Header() {
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+
   const handleWhatsAppClick = () => {
     trackEvent('cta_whatsapp_click', { source: 'header' })
   }
 
   const handleCallClick = () => {
     trackEvent('cta_call_click', { source: 'header' })
+  }
+
+  const handleDropdownToggle = () => {
+    setIsDropdownOpen(!isDropdownOpen)
+  }
+
+  const handleCategoryClick = (categoryName: string) => {
+    trackEvent('product_category_click', { source: 'header', category: categoryName })
+    setIsDropdownOpen(false)
   }
 
   return (
@@ -38,11 +60,52 @@ export default function Header() {
             <Link href="/" className="text-neutral-700 hover:text-brand-black transition-colors">
               Home
             </Link>
-            <Link href="/collections" className="text-neutral-700 hover:text-brand-black transition-colors">
-              Collections
-            </Link>
+            
+            {/* Products Dropdown */}
+            <div className="relative">
+              <button
+                onClick={handleDropdownToggle}
+                className="flex items-center space-x-1 text-neutral-700 hover:text-brand-black transition-colors focus:outline-none"
+              >
+                <span>Products</span>
+                <svg
+                  className={`w-4 h-4 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              
+              {/* Dropdown Menu */}
+              {isDropdownOpen && (
+                <>
+                  <div 
+                    className="fixed inset-0 z-30"
+                    onClick={() => setIsDropdownOpen(false)}
+                  />
+                  <div className="absolute left-0 mt-2 w-64 bg-white border border-neutral-200 rounded-lg shadow-lg z-40 py-2">
+                    <div className="max-h-96 overflow-y-auto">
+                      {productCategories.map((category) => (
+                        <Link
+                          key={category.name}
+                          href={category.href}
+                          onClick={() => handleCategoryClick(category.name)}
+                          className="block px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50 hover:text-brand-black transition-colors"
+                        >
+                          {category.name}
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+            
             <Link href="/showroom" className="text-neutral-700 hover:text-brand-black transition-colors">
-              Visit Showroom
+              Project
+
             </Link>
             <Link href="/about" className="text-neutral-700 hover:text-brand-black transition-colors">
               About
