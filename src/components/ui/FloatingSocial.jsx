@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-const WHATSAPP_NUMBER = '916372569846'; // +91 India code + number
+const WHATSAPP_NUMBER = '918917690567'; // +91 India code + number
 const WHATSAPP_MESSAGE = 'Hello! I am interested in your furniture collection.';
 const FACEBOOK_URL = 'https://www.facebook.com/people/Oasisfurniture-Furnishing/pfbid02jSVVpEQYS1G5ZNK7XrEiZbi7hTWJyv9TGRhBN9PUkt9c19CiqpRYnsJACZ6pkPwwl/?rdid=uzEeGK0Hn1u5Tm5A&share_url=https%3A%2F%2Fwww.facebook.com%2Fshare%2F1EEZ3zWc9S%2F'; // Replace with your page
 const INSTAGRAM_URL = 'https://www.instagram.com/reel/DVa1Yx0iWTS/?igsh=MW9xOGlzcjVqMGEzcA%3D%3D'; // Replace with your handle

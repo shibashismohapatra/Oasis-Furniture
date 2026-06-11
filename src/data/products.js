@@ -23,7 +23,20 @@ export const featured = [
   { id: 2, name: 'Aura King Bed Frame',     price: 89000, originalPrice: null,  tag: 'New',        category: 'Bedroom',     image: 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=500&q=80', colors: ['#8B7355','#1a1714'], rating: 4.9, reviews: 87, description: 'The Aura King Bed Frame combines a solid walnut headboard with clean geometric lines. Engineered for durability and designed to anchor your bedroom with quiet luxury.' },
   { id: 3, name: 'Marble Dining Table',     price: 115000,originalPrice: null,  tag: 'Premium',    category: 'Dining',      image: 'https://images.unsplash.com/photo-1615066390971-03e4e1c36ddf?w=500&q=80', colors: ['#E8E0D4','#C9A96E'], rating: 4.7, reviews: 56, description: 'A statement piece for modern dining rooms. Features a genuine Carrara marble top with solid brass legs. Seats 6-8 comfortably.' },
   { id: 4, name: 'Zen 3-Seater Sofa',       price: 67000, originalPrice: 78000, tag: 'Sale',       category: 'Living Room', image: 'https://images.unsplash.com/photo-1540574163026-643ea20ade25?w=500&q=80', colors: ['#C4B49A','#6B8E6B','#8B7355'], rating: 4.6, reviews: 203, description: 'The Zen 3-Seater strikes the perfect balance between comfort and style. Deep-cushioned seats with removable covers and a solid teak frame built to last decades.' },
-  { id: 5, name: 'Teak Outdoor Set',        price: 54000, originalPrice: null,  tag: 'New',        category: 'Outdoor',     image: 'https://images.unsplash.com/photo-1600210491892-03d54079b6ac?w=500&q=80', colors: ['#8B7355','#1a1714'], rating: 4.8, reviews: 45, description: 'Grade-A teak outdoor dining set, naturally weather-resistant. Includes a 6-seater table and 6 stacking chairs. Perfect for garden terraces and balconies.' },
+  //{ id: 5, name: 'Teak Outdoor Set',        price: 54000, originalPrice: null,  tag: 'New',        category: 'Outdoor',     image: 'https://images.pexels.com/photos/27975920/pexels-photo-27975920.jpeg', colors: ['#8B7355','#1a1714'], rating: 4.8, reviews: 45, description: 'Grade-A teak outdoor dining set, naturally weather-resistant. Includes a 6-seater table and 6 stacking chairs. Perfect for garden terraces and balconies.' },
+  {
+  id: 6,
+  name: 'Teak Outdoor Set',
+  price: 54000,
+  originalPrice: null,
+  tag: 'New',
+  category: 'Outdoor',
+  image: 'https://images.pexels.com/photos/1866149/pexels-photo-1866149.jpeg?auto=compress&cs=tinysrgb&w=1200',
+  colors: ['#8B7355', '#1a1714'],
+  rating: 4.8,
+  reviews: 45,
+  description: 'Grade-A teak outdoor dining set, naturally weather-resistant. Includes a 6-seater table and 6 stacking chairs. Perfect for garden terraces and balconies.'
+},
   { id: 6, name: 'Velvet Accent Chair',     price: 28000, originalPrice: 33000, tag: 'Sale',       category: 'Living Room', image: 'https://images.unsplash.com/photo-1506439773649-6e0eb8cfb237?w=500&q=80', colors: ['#6B8E6B','#C9A96E','#1a1714'], rating: 4.5, reviews: 178, description: 'A jewel of a chair in sage green velvet with gold-finished legs. Compact enough for any corner yet commanding enough to be the room\'s focal point.' },
 ];
 

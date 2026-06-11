@@ -1,5 +1,189 @@
-import { useState, useMemo, useCallback } from 'react';
-import { ArrowLeft, Heart, ShoppingBag, SlidersHorizontal, X, ChevronDown, ChevronUp, Star } from 'lucide-react';
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import { ArrowLeft, Heart, ShoppingBag, SlidersHorizontal, X, ChevronDown, ChevronUp, Star, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
+
+/* ─────────────────────────────────────────────
+            Image Zoom Modal
+───────────────────────────────────────────── */
+function ImageZoomModal({ src, alt, onClose }) {
+  const [scale, setScale] = useState(1);
+  const [pos, setPos]     = useState({ x: 0, y: 0 });
+  const [dragging, setDragging] = useState(false);
+  const dragStart = useRef(null);
+  const containerRef = useRef(null);
+
+  // close on Escape
+  useEffect(() => {
+    const fn = e => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', fn);
+    document.body.style.overflow = 'hidden';
+    return () => { window.removeEventListener('keydown', fn); document.body.style.overflow = ''; };
+  }, [onClose]);
+
+  const clampPos = (x, y, s) => {
+    const el = containerRef.current;
+    if (!el) return { x, y };
+    const { width: cw, height: ch } = el.getBoundingClientRect();
+    const maxX = Math.max(0, (cw * s - cw) / 2);
+    const maxY = Math.max(0, (ch * s - ch) / 2);
+    return { x: Math.min(maxX, Math.max(-maxX, x)), y: Math.min(maxY, Math.max(-maxY, y)) };
+  };
+
+  const zoom = (dir) => {
+    setScale(s => {
+      const ns = Math.min(4, Math.max(1, s + dir * 0.5));
+      setPos(p => clampPos(p.x, p.y, ns));
+      return ns;
+    });
+  };
+
+  const reset = () => { setScale(1); setPos({ x: 0, y: 0 }); };
+
+  // Mouse drag
+  const onMouseDown = e => {
+    if (scale === 1) return;
+    setDragging(true);
+    dragStart.current = { mx: e.clientX, my: e.clientY, px: pos.x, py: pos.y };
+  };
+  const onMouseMove = e => {
+    if (!dragging || !dragStart.current) return;
+    const dx = e.clientX - dragStart.current.mx;
+    const dy = e.clientY - dragStart.current.my;
+    setPos(clampPos(dragStart.current.px + dx, dragStart.current.py + dy, scale));
+  };
+  const onMouseUp = () => setDragging(false);
+
+  // Wheel zoom
+  const onWheel = e => {
+    e.preventDefault();
+    zoom(e.deltaY < 0 ? 1 : -1);
+  };
+
+  // Touch pinch
+  const lastTouchDist = useRef(null);
+  const onTouchStart = e => {
+    if (e.touches.length === 2) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      lastTouchDist.current = Math.hypot(dx, dy);
+    } else if (e.touches.length === 1 && scale > 1) {
+      setDragging(true);
+      dragStart.current = { mx: e.touches[0].clientX, my: e.touches[0].clientY, px: pos.x, py: pos.y };
+    }
+  };
+  const onTouchMove = e => {
+    if (e.touches.length === 2) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const dist = Math.hypot(dx, dy);
+      if (lastTouchDist.current) {
+        const delta = (dist - lastTouchDist.current) / 80;
+        setScale(s => { const ns = Math.min(4, Math.max(1, s + delta)); return ns; });
+      }
+      lastTouchDist.current = dist;
+    } else if (e.touches.length === 1 && dragging && dragStart.current) {
+      const dx = e.touches[0].clientX - dragStart.current.mx;
+      const dy = e.touches[0].clientY - dragStart.current.my;
+      setPos(clampPos(dragStart.current.px + dx, dragStart.current.py + dy, scale));
+    }
+  };
+  const onTouchEnd = () => { setDragging(false); lastTouchDist.current = null; };
+
+  return (
+    <div
+      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 9999,
+        background: 'rgba(0,0,0,0.92)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}
+    >
+      {/* Controls top-right */}
+      <div style={{ position: 'absolute', top: 16, right: 16, display: 'flex', gap: 8, zIndex: 10 }}>
+        <button onClick={() => zoom(1)} title="Zoom In"
+          style={{ width:40, height:40, borderRadius:'50%', background:'rgba(255,255,255,0.15)', border:'none',
+            color:'#fff', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center',
+            backdropFilter:'blur(4px)', transition:'background 0.2s' }}
+          onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,0.28)'}
+          onMouseLeave={e=>e.currentTarget.style.background='rgba(255,255,255,0.15)'}>
+          <ZoomIn size={18}/>
+        </button>
+        <button onClick={() => zoom(-1)} title="Zoom Out"
+          style={{ width:40, height:40, borderRadius:'50%', background:'rgba(255,255,255,0.15)', border:'none',
+            color:'#fff', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center',
+            backdropFilter:'blur(4px)', transition:'background 0.2s' }}
+          onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,0.28)'}
+          onMouseLeave={e=>e.currentTarget.style.background='rgba(255,255,255,0.15)'}>
+          <ZoomOut size={18}/>
+        </button>
+        <button onClick={reset} title="Reset"
+          style={{ width:40, height:40, borderRadius:'50%', background:'rgba(255,255,255,0.15)', border:'none',
+            color:'#fff', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center',
+            backdropFilter:'blur(4px)', transition:'background 0.2s' }}
+          onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,0.28)'}
+          onMouseLeave={e=>e.currentTarget.style.background='rgba(255,255,255,0.15)'}>
+          <RotateCcw size={16}/>
+        </button>
+        <button onClick={onClose} title="Close"
+          style={{ width:40, height:40, borderRadius:'50%', background:'rgba(255,255,255,0.15)', border:'none',
+            color:'#fff', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center',
+            backdropFilter:'blur(4px)', transition:'background 0.2s' }}
+          onMouseEnter={e=>e.currentTarget.style.background='rgba(220,60,60,0.55)'}
+          onMouseLeave={e=>e.currentTarget.style.background='rgba(255,255,255,0.15)'}>
+          <X size={18}/>
+        </button>
+      </div>
+
+      {/* Zoom hint */}
+      {scale === 1 && (
+        <div style={{ position:'absolute', bottom:24, left:'50%', transform:'translateX(-50%)',
+          background:'rgba(255,255,255,0.12)', color:'#fff', fontSize:'0.72rem', letterSpacing:'0.10em',
+          padding:'6px 16px', borderRadius:20, backdropFilter:'blur(4px)', pointerEvents:'none',
+          textTransform:'uppercase', fontFamily:"'Jost',sans-serif" }}>
+          Scroll or tap + to zoom
+        </div>
+      )}
+      {scale > 1 && (
+        <div style={{ position:'absolute', bottom:24, left:'50%', transform:'translateX(-50%)',
+          background:'rgba(255,255,255,0.12)', color:'#fff', fontSize:'0.72rem', letterSpacing:'0.10em',
+          padding:'6px 16px', borderRadius:20, backdropFilter:'blur(4px)', pointerEvents:'none',
+          textTransform:'uppercase', fontFamily:"'Jost',sans-serif" }}>
+          Drag to pan · {Math.round(scale * 100)}%
+        </div>
+      )}
+
+      {/* Image container */}
+      <div
+        ref={containerRef}
+        onMouseDown={onMouseDown}
+        onMouseMove={onMouseMove}
+        onMouseUp={onMouseUp}
+        onMouseLeave={onMouseUp}
+        onWheel={onWheel}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+        style={{
+          width: '90vw', height: '90vh',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          overflow: 'hidden',
+          cursor: scale > 1 ? (dragging ? 'grabbing' : 'grab') : 'zoom-in',
+        }}
+      >
+        <img
+          src={src} alt={alt}
+          draggable={false}
+          style={{
+            maxWidth: '100%', maxHeight: '100%',
+            objectFit: 'contain',
+            transform: `scale(${scale}) translate(${pos.x / scale}px, ${pos.y / scale}px)`,
+            transition: dragging ? 'none' : 'transform 0.25s cubic-bezier(.22,1,.36,1)',
+            userSelect: 'none',
+          }}
+        />
+      </div>
+    </div>
+  );
+}
 import { useCartStore } from '../../store/useCartStore';
 import { useWishlistStore } from '../../store/useWishlistStore';
 import { useToastStore } from '../../store/useToastStore';
@@ -50,6 +234,85 @@ const bedsData = [
   { id: 43, name: 'Berry PLM King Bed',           image: '/beds/Berry_PLM_King_Bed.jpg',           type: 'Storage', size: 'King',   storage: 'Hydraulic Storage', price: 95000,  originalPrice: 114000, tag: 'Premium',    specs: { type: 'Full Hydraulic Storage', height: '400 mm', matSize: '78 × 72 inch (1981 × 1828 mm)', length: '78 inch', width: '72 inch' }, description: 'Experience superior comfort, elegant craftsmanship, and smart functionality with the Berry PLM King Bed. The bed is equipped with a Full Hydraulic Storage System (HT 400 mm), allowing effortless lifting of the mattress platform and providing spacious hidden storage underneath. This innovative storage feature helps maximize room space while keeping bedding, pillows, blankets, and daily essentials neatly organized and easily accessible.Designed for convenience and easy installation, the Berry PLM King Bed offers luxury, comfort, and functionality for modern living.Upgrade your bedroom décor with the stylish and practical Berry PLM King Bed.' },
   { id: 44, name: 'AS 4 King Bed',                image: '/beds/AS_4_King_Bed.jpg',                type: 'Storage', size: 'King',   storage: 'Manual Storage',    price: 64000,  originalPrice: 77000,  tag: 'New',        specs: { type: 'Manual Lift Storage', height: '400 mm', matSize: '   78 × 72 inch (1981 × 1828 mm)', length: '78 inch', width: '72 inch' }, description: 'Experience luxury, functionality, and modern elegance with the AS 4 King Bed. The bed comes with a Manual Lift Storage System (HT 400 mm), allowing easy access to spacious storage beneath the mattress platform. This smart storage solution helps maximize bedroom space and keeps bedding, pillows, blankets, and daily essentials neatly organized and within easy reach.Designed with convenience in mind, the AS 4 King Bed offers simple installation and user-friendly functionality, making it an ideal choice for modern homes.Upgrade your bedroom décor with the perfect combination of luxury, comfort, and intelligent storage through the AS 4 King Bed.' },
   { id: 45, name: 'AS 6 King Bed',                image: '/beds/AS_6_King_Bed.jpg',                type: 'Storage', size: 'King',   storage: 'Manual Storage',    price: 68000,  originalPrice: 82000,  tag: 'New',        specs: { type: 'Manual Lift Storage', height: '400 mm', matSize: '   78 × 72 inch (1981 × 1828 mm)', length: '78 inch', width: '72 inch' }, description: 'Experience premium comfort, stylish design, and practical functionality with the AS 6 King Bed. The bed is equipped with a Manual Lift Storage System (HT 400 mm) that allows convenient access to spacious storage beneath the mattress platform. This intelligent storage solution helps maximize room space while keeping bedding, pillows, blankets, and daily essentials neatly organized and within easy reach.Designed for easy setup and user-friendly functionality, the AS 6 King Bed delivers both comfort and practicality for modern living.Upgrade your bedroom with the perfect blend of luxury, convenience, and smart storage through the AS 6 King Bed.' },
+
+  /* ── SPW Bedroom Collection — Exact Prices from May 2026 Price List ── */
+  { id: 46, name: 'Royce King Bed',               image: '/bed-sets/Royce.jpg',                    type: 'Storage', size: 'King',   storage: 'Hydraulic Storage', price: 112998, originalPrice: 135000, tag: 'Premium',    specs: { type: 'Full Hydraulic Lift-On Storage', material: 'HG Ceramic, Slate Grey & Gold', height: '1200 mm', matSize: '78 × 72 inch (1957 × 2250 mm)', length: '2250 mm', width: '1957 mm' }, description: 'Elevate your bedroom with the Royce King Bed — where sleek design meets warm sophistication. The combination of HG Ceramic, Slate Grey, and Gold adds just the right touch of luxury and modern flair. Features an openable headboard design and a Full Hydraulic Lift-On Storage system for spacious underbed storage. A premium bedroom centerpiece built for those who seek both style and functionality.' },
+  { id: 47, name: 'Royce Queen Bed',              image: '/bed-sets/Royce.jpg',                    type: 'Storage', size: 'Queen',  storage: 'Hydraulic Storage', price: 94264,  originalPrice: 113000, tag: 'Premium',    specs: { type: 'Full Hydraulic Lift-On Storage', material: 'HG Ceramic, Slate Grey & Gold', height: '1200 mm', matSize: '78 × 60 inch (1657 × 2250 mm)', length: '2250 mm', width: '1657 mm' }, description: 'Elevate your bedroom with the Royce Queen Bed — where sleek design meets warm sophistication. The combination of HG Ceramic, Slate Grey, and Gold adds just the right touch of luxury and modern flair. Features an openable headboard design and a Full Hydraulic Lift-On Storage system for spacious underbed storage.' },
+
+  { id: 48, name: 'Adore King Bed',               image: '/bed-sets/Adore.jpg',                    type: 'Storage', size: 'King',   storage: 'Hydraulic Storage', price: 112998, originalPrice: 135000, tag: 'Premium',    specs: { type: 'Full Hydraulic Lift-On Storage', material: 'Eucalyptus & Sahara Beige', height: '1103 mm', matSize: '78 × 72 inch (1951 × 2087 mm)', length: '2087 mm', width: '1951 mm' }, description: 'The Adore King Bed features Eucalyptus wood grain, Sahara Beige tones, and a plush upholstered leatherette headboard. With sleek grooves, curved panels, and gold accents, it\'s ideal for modern spaces with a luxe, serene feel. The Full Hydraulic Lift-On Storage system provides effortless access to spacious underbed storage.' },
+  { id: 49, name: 'Adore Queen Bed',              image: '/bed-sets/Adore.jpg',                    type: 'Storage', size: 'Queen',  storage: 'Hydraulic Storage', price: 85264,  originalPrice: 102000, tag: 'Premium',    specs: { type: 'Full Hydraulic Lift-On Storage', material: 'Eucalyptus & Sahara Beige', height: '1103 mm', matSize: '78 × 60 inch (1651 × 2087 mm)', length: '2087 mm', width: '1651 mm' }, description: 'The Adore Queen Bed features Eucalyptus wood grain, Sahara Beige tones, and a plush upholstered leatherette headboard. With sleek grooves, curved panels, and gold accents, it\'s ideal for modern spaces with a luxe, serene feel. Full Hydraulic Lift-On Storage provides effortless access to spacious underbed storage.' },
+
+  { id: 50, name: 'Desire King Bed',              image: '/bed-sets/Desire.jpg',                   type: 'Storage', size: 'King',   storage: 'Hydraulic Storage', price: 106998, originalPrice: 128000, tag: 'Premium',    specs: { type: 'Full Hydraulic Lift-On Storage', material: 'Eucalyptus & Sahara Beige', height: '1200 mm', matSize: '78 × 72 inch (1930 × 2287 mm)', length: '2287 mm', width: '1930 mm' }, description: 'The Desire King Bed pairs Eucalyptus wood and Sahara Beige with a quilted upholstered headboard and built-in shelf. Sleek lines and smart Full Hydraulic Lift-On Storage make it perfect for those who seek comfort, style, and functionality in one elegant bedroom piece.' },
+  { id: 51, name: 'Desire Queen Bed',             image: '/bed-sets/Desire.jpg',                   type: 'Storage', size: 'Queen',  storage: 'Hydraulic Storage', price: 85264,  originalPrice: 102000, tag: 'Premium',    specs: { type: 'Full Hydraulic Lift-On Storage', material: 'Eucalyptus & Sahara Beige', height: '1200 mm', matSize: '78 × 60 inch (1630 × 2287 mm)', length: '2287 mm', width: '1630 mm' }, description: 'The Desire Queen Bed pairs Eucalyptus wood and Sahara Beige with a quilted upholstered headboard and built-in shelf. Sleek lines and smart Full Hydraulic Lift-On Storage make it perfect for those who seek comfort, style, and functionality.' },
+
+  { id: 52, name: 'Morgan King Bed',              image: '/bed-sets/Morgan.jpg',                   type: 'Storage', size: 'King',   storage: 'Hydraulic Storage', price: 108778, originalPrice: 130000, tag: 'Premium',    specs: { type: '3/4th Hydraulic Lift-On Storage', material: 'ESM Sahara Beige', height: '1158 mm', matSize: '78 × 72 inch (2020 × 2046 mm)', length: '2046 mm', width: '2020 mm' }, description: 'The Morgan King Bed features early morning hues in the headboard, a modern yet timeless design, and cushioned padding for added comfort. With flat and fluted glass wardrobe shutters, LED lights, and luxurious gold-finished lunar handles, the Morgan brings premium craftsmanship to your bedroom. Equipped with a 3/4th Hydraulic Lift-On Storage system.' },
+  { id: 53, name: 'Morgan Queen Bed',             image: '/bed-sets/Morgan.jpg',                   type: 'Storage', size: 'Queen',  storage: 'Hydraulic Storage', price: 92485,  originalPrice: 111000, tag: 'Premium',    specs: { type: '3/4th Hydraulic Lift-On Storage', material: 'ESM Sahara Beige', height: '1158 mm', matSize: '78 × 60 inch (1720 × 2046 mm)', length: '2046 mm', width: '1720 mm' }, description: 'The Morgan Queen Bed features early morning hues in the headboard, a modern yet timeless design with cushioned padding for comfort. Gold-finished lunar handles and 3/4th Hydraulic Lift-On Storage make it a premium choice for those who value both aesthetics and practicality.' },
+
+  { id: 54, name: 'Akira King Bed',               image: '/bed-sets/Akira.jpg',                    type: 'Storage', size: 'King',   storage: 'Hydraulic Storage', price: 109996, originalPrice: 132000, tag: 'Premium',    specs: { type: 'Full Hydraulic Lift-On Storage', material: 'Pumic Grey', matSize: '78 × 72 inch', length: '78 inch', width: '72 inch' }, description: 'Experience luxury and modern elegance with the Akira King Bed, designed in a refined Pumic Grey finish. The Full Hydraulic Lift-On Storage system ensures smooth, effortless access to spacious underbed storage, helping maximize your bedroom space while maintaining a sleek contemporary aesthetic.' },
+  { id: 55, name: 'Akira Queen Bed',              image: '/bed-sets/Akira.jpg',                    type: 'Storage', size: 'Queen',  storage: 'Hydraulic Storage', price: 89064,  originalPrice: 107000, tag: 'Premium',    specs: { type: 'Full Hydraulic Lift-On Storage', material: 'Pumic Grey', matSize: '78 × 60 inch', length: '78 inch', width: '60 inch' }, description: 'Experience luxury and modern elegance with the Akira Queen Bed in a refined Pumic Grey finish. The Full Hydraulic Lift-On Storage system ensures smooth, effortless access to spacious underbed storage.' },
+
+  { id: 56, name: 'Artisan King Bed',             image: '/bed-sets/Artisan.jpg',                  type: 'Storage', size: 'King',   storage: 'Hydraulic Storage', price: 103730, originalPrice: 124000, tag: 'Bestseller', specs: { type: 'Full Hydraulic Lift-On Storage', material: 'Sheesham & Natural Wenge', matSize: '78 × 72 inch', length: '78 inch', width: '72 inch' }, description: 'The Artisan King Bed brings timeless craftsmanship in a rich Sheesham and Natural Wenge finish. The Full Hydraulic Lift-On Storage system allows effortless access to generous underbed storage. A perfect blend of natural warmth and modern functionality for bedrooms that demand both beauty and practicality.' },
+  { id: 57, name: 'Artisan Queen Bed',            image: '/bed-sets/Artisan.jpg',                  type: 'Storage', size: 'Queen',  storage: 'Hydraulic Storage', price: 87574,  originalPrice: 105000, tag: 'Bestseller', specs: { type: 'Full Hydraulic Lift-On Storage', material: 'Sheesham & Natural Wenge', matSize: '78 × 60 inch', length: '78 inch', width: '60 inch' }, description: 'The Artisan Queen Bed brings timeless craftsmanship in a rich Sheesham and Natural Wenge finish with Full Hydraulic Lift-On Storage. A perfect blend of natural warmth and modern functionality.' },
+
+  { id: 58, name: 'Jupiter King Bed',             image: '/bed-sets/Jupiter.jpg',                  type: 'Storage', size: 'King',   storage: 'Hydraulic Storage', price: 114304, originalPrice: 137000, tag: 'Premium',    specs: { type: '3/4th Hydraulic Lift-On Storage', material: 'HG White & Natural Teak', matSize: '78 × 72 inch', length: '78 inch', width: '72 inch' }, description: 'The Jupiter King Bed combines the freshness of HG White with the warmth of Natural Teak for a stunning bedroom centerpiece. Featuring a 3/4th Hydraulic Lift-On Storage system, it offers practical underbed storage without compromising on its elegant aesthetic appeal.' },
+  { id: 59, name: 'Jupiter Queen Bed',            image: '/bed-sets/Jupiter.jpg',                  type: 'Storage', size: 'Queen',  storage: 'Hydraulic Storage', price: 94811,  originalPrice: 114000, tag: 'Premium',    specs: { type: '3/4th Hydraulic Lift-On Storage', material: 'HG White & Natural Teak', matSize: '78 × 60 inch', length: '78 inch', width: '60 inch' }, description: 'The Jupiter Queen Bed combines HG White with Natural Teak for a stunning bedroom look. Featuring a 3/4th Hydraulic Lift-On Storage system for practical underbed storage.' },
+
+  { id: 60, name: 'Nora King Bed',                image: '/bed-sets/Nora.jpg',                     type: 'Storage', size: 'King',   storage: 'Hydraulic Storage', price: 96286,  originalPrice: 115000, tag: 'Bestseller', specs: { type: 'Full Hydraulic Lift-On Storage', material: 'Lyon Walnut & HG Ceramic', matSize: '78 × 72 inch', length: '78 inch', width: '72 inch' }, description: 'The Nora King Bed exudes sophisticated elegance with a Lyon Walnut and HG Ceramic finish. The Full Hydraulic Lift-On Storage offers effortless access to spacious underbed storage. Clean lines and a contemporary palette make the Nora a standout choice for premium bedrooms.' },
+  { id: 61, name: 'Nora Queen Bed',               image: '/bed-sets/Nora.jpg',                     type: 'Storage', size: 'Queen',  storage: 'Hydraulic Storage', price: 85250,  originalPrice: 102000, tag: 'Bestseller', specs: { type: 'Full Hydraulic Lift-On Storage', material: 'Lyon Walnut & HG Ceramic', matSize: '78 × 60 inch', length: '78 inch', width: '60 inch' }, description: 'The Nora Queen Bed features a Lyon Walnut and HG Ceramic finish with Full Hydraulic Lift-On Storage. Clean lines and a contemporary palette make it a standout choice for premium bedrooms.' },
+
+  { id: 62, name: 'Alaska King Bed',              image: '/bed-sets/Alaska.jpg',                   type: 'Storage', size: 'King',   storage: 'Hydraulic Storage', price: 99098,  originalPrice: 119000, tag: 'Bestseller', specs: { type: 'Full Hydraulic Lift-On Storage', material: 'HG White & Modern Ash', matSize: '78 × 72 inch', length: '78 inch', width: '72 inch' }, description: 'The Alaska King Bed presents a crisp HG White and Modern Ash finish for a clean, contemporary bedroom look. Full Hydraulic Lift-On Storage ensures smooth access to generous underbed storage. A bestselling design that balances minimalist aesthetics with practical functionality.' },
+  { id: 63, name: 'Alaska Queen Bed',             image: '/bed-sets/Alaska.jpg',                   type: 'Storage', size: 'Queen',  storage: 'Hydraulic Storage', price: 83611,  originalPrice: 100000, tag: 'Bestseller', specs: { type: 'Full Hydraulic Lift-On Storage', material: 'HG White & Modern Ash', matSize: '78 × 60 inch', length: '78 inch', width: '60 inch' }, description: 'The Alaska Queen Bed in HG White and Modern Ash finish brings a clean, contemporary aesthetic to your bedroom with Full Hydraulic Lift-On Storage.' },
+
+  { id: 64, name: 'Sahara King Bed',              image: '/bed-sets/Sahara.jpg',                   type: 'Storage', size: 'King',   storage: 'Hydraulic Storage', price: 84042,  originalPrice: 101000, tag: 'New',        specs: { type: '3/4th Hydraulic Lift-On Storage', material: 'Stone Grey Modern Ash', height: '1150 mm', matSize: '78 × 72 inch (1954 × 2140 mm)', length: '2140 mm', width: '1954 mm' }, description: 'The Sahara King Bed blends classic and contemporary styles with elegant moulding and a floating effect from plastic ABS legs. The beige and Stone Grey Modern Ash finish is accentuated by sleek bronze diamond-cut handles. Features a stylish headboard with charging socket and 3/4th Hydraulic Lift-On Storage.' },
+  { id: 65, name: 'Sahara Queen Bed',             image: '/bed-sets/Sahara.jpg',                   type: 'Storage', size: 'Queen',  storage: 'Hydraulic Storage', price: 69455,  originalPrice: 83000,  tag: 'New',        specs: { type: '3/4th Hydraulic Lift-On Storage', material: 'Stone Grey Modern Ash', height: '1150 mm', matSize: '78 × 60 inch (1654 × 2140 mm)', length: '2140 mm', width: '1654 mm' }, description: 'The Sahara Queen Bed blends classic and contemporary styles with Stone Grey Modern Ash finish. Features a stylish headboard with charging socket and 3/4th Hydraulic Lift-On Storage.' },
+
+  { id: 66, name: 'Gloria King Bed',              image: '/bed-sets/Gloria.jpg',                   type: 'Storage', size: 'King',   storage: 'Hydraulic Storage', price: 86411,  originalPrice: 104000, tag: 'Bestseller', specs: { type: '3/4th Hydraulic Lift-On Storage', material: 'Sebastian Oak', matSize: '78 × 72 inch', length: '78 inch', width: '72 inch' }, description: 'The Gloria King Bed showcases a warm Sebastian Oak finish that brings a touch of natural elegance to your bedroom. The 3/4th Hydraulic Lift-On Storage system provides convenient underbed storage, combining beauty with everyday practicality.' },
+  { id: 67, name: 'Gloria Queen Bed',             image: '/bed-sets/Gloria.jpg',                   type: 'Storage', size: 'Queen',  storage: 'Hydraulic Storage', price: 74957,  originalPrice: 90000,  tag: 'Bestseller', specs: { type: '3/4th Hydraulic Lift-On Storage', material: 'Sebastian Oak', matSize: '78 × 60 inch', length: '78 inch', width: '60 inch' }, description: 'The Gloria Queen Bed in Sebastian Oak finish brings natural elegance to your bedroom with 3/4th Hydraulic Lift-On Storage for convenient underbed storage.' },
+
+  { id: 68, name: 'Pearl King Bed',               image: '/bed-sets/Pearl.jpg',                    type: 'Storage', size: 'King',   storage: 'Hydraulic Storage', price: 93250,  originalPrice: 112000, tag: 'Premium',    specs: { type: '3/4th Hydraulic Lift-On Storage', material: 'HG Ceramic & Natural Teak', height: '1100 mm', matSize: '78 × 72 inch (1960 × 2137 mm)', length: '2137 mm', width: '1960 mm' }, description: 'Transform your bedroom with the Pearl King Bed — the perfect mix of elegance, smart storage, and everyday convenience. The HG Ceramic and Natural Teak combination creates a sophisticated look, while the 3/4th Hydraulic Lift-On Storage ensures practical underbed space. Designed for those who value both beauty and functionality.' },
+  { id: 69, name: 'Pearl Queen Bed',              image: '/bed-sets/Pearl.jpg',                    type: 'Storage', size: 'Queen',  storage: 'Hydraulic Storage', price: 74877,  originalPrice: 90000,  tag: 'Premium',    specs: { type: '3/4th Hydraulic Lift-On Storage', material: 'HG Ceramic & Natural Teak', height: '1100 mm', matSize: '78 × 60 inch (1660 × 2137 mm)', length: '2137 mm', width: '1660 mm' }, description: 'The Pearl Queen Bed offers the perfect mix of elegance, smart storage, and everyday convenience in HG Ceramic and Natural Teak finish. 3/4th Hydraulic Lift-On Storage for practical underbed space.' },
+
+  { id: 70, name: 'Alina King Bed',               image: '/bed-sets/Alina.jpg',                    type: 'Storage', size: 'King',   storage: 'Hydraulic Storage', price: 71284,  originalPrice: 85500,  tag: 'New',        specs: { type: '3/4th Hydraulic Lift-On Storage', material: 'HG White & Fumed Oak', matSize: '78 × 72 inch', length: '78 inch', width: '72 inch' }, description: 'The Alina King Bed combines the purity of HG White with the richness of Fumed Oak for a modern yet warm bedroom aesthetic. The 3/4th Hydraulic Lift-On Storage system offers smart underbed storage, making this bed as practical as it is beautiful.' },
+  { id: 71, name: 'Alina Queen Bed',              image: '/bed-sets/Alina.jpg',                    type: 'Storage', size: 'Queen',  storage: 'Hydraulic Storage', price: 66580,  originalPrice: 80000,  tag: 'New',        specs: { type: '3/4th Hydraulic Lift-On Storage', material: 'HG White & Fumed Oak', matSize: '78 × 60 inch', length: '78 inch', width: '60 inch' }, description: 'The Alina Queen Bed combines HG White with Fumed Oak for a modern yet warm bedroom look. 3/4th Hydraulic Lift-On Storage for smart underbed storage.' },
+
+  { id: 72, name: 'Boston King Bed',              image: '/bed-sets/Boston.jpg',                   type: 'Storage', size: 'King',   storage: 'Hydraulic Storage', price: 93517,  originalPrice: 112000, tag: 'Bestseller', specs: { type: 'Full Hydraulic Lift-On Storage', material: 'Sheesham', height: '1150 mm', matSize: '78 × 72 inch (1954 × 2114 mm)', length: '2114 mm', width: '1954 mm' }, description: 'The Boston King Bed brings a classic Sheesham finish that elegantly replicates the original wood colors and textures for a novel look with hassle-free maintenance. Full Hydraulic Lift-On Storage provides generous underbed storage capacity. A timeless bedroom staple that combines traditional warmth with modern utility.' },
+  { id: 73, name: 'Boston Queen Bed',             image: '/bed-sets/Boston.jpg',                   type: 'Storage', size: 'Queen',  storage: 'Hydraulic Storage', price: 77113,  originalPrice: 92500,  tag: 'Bestseller', specs: { type: 'Full Hydraulic Lift-On Storage', material: 'Sheesham', height: '1150 mm', matSize: '78 × 60 inch (1654 × 2114 mm)', length: '2114 mm', width: '1654 mm' }, description: 'The Boston Queen Bed in Sheesham finish elegantly replicates original wood colors and textures. Full Hydraulic Lift-On Storage provides generous underbed storage.' },
+
+  { id: 74, name: 'Amazon King Bed',              image: '/bed-sets/Amazon.jpg',                   type: 'Storage', size: 'King',   storage: 'Hydraulic Storage', price: 105860, originalPrice: 127000, tag: 'Premium',    specs: { type: '3/4th Hydraulic Lift-On Storage', material: 'Natural Wenge & Bronze Walnut', matSize: '78 × 72 inch', length: '78 inch', width: '72 inch' }, description: 'The Amazon King Bed presents a bold Natural Wenge and Bronze Walnut finish for a commanding bedroom presence. The 3/4th Hydraulic Lift-On Storage system ensures practical underbed storage. A premium choice for those who appreciate rich, natural wood tones combined with modern storage functionality.' },
+  { id: 75, name: 'Amazon Queen Bed',             image: '/bed-sets/Amazon.jpg',                   type: 'Storage', size: 'Queen',  storage: 'Hydraulic Storage', price: 89764,  originalPrice: 108000, tag: 'Premium',    specs: { type: '3/4th Hydraulic Lift-On Storage', material: 'Natural Wenge & Bronze Walnut', matSize: '78 × 60 inch', length: '78 inch', width: '60 inch' }, description: 'The Amazon Queen Bed in Natural Wenge and Bronze Walnut finish offers a commanding bedroom presence with 3/4th Hydraulic Lift-On Storage.' },
+
+  { id: 76, name: 'Maple King Bed',               image: '/bed-sets/Maple.jpg',                    type: 'Storage', size: 'King',   storage: 'Hydraulic Storage', price: 84460,  originalPrice: 101000, tag: 'Bestseller', specs: { type: '3/4th Hydraulic Lift-On Storage', material: 'Fumed Oak & Bronze Walnut', height: '900 mm', matSize: '78 × 72 inch (1920 × 2180 mm)', length: '2180 mm', width: '1920 mm' }, description: 'Symbolic of strength and endurance, the Maple King Bed assures a unified look across your bedroom. It comes in a subtle blend of Fumed Oak and Bronze Walnut browns that satisfies the desires of comfort and luxury. Features 3/4th Hydraulic Lift-On Storage for practical underbed space.' },
+  { id: 77, name: 'Maple Queen Bed',              image: '/bed-sets/Maple.jpg',                    type: 'Storage', size: 'Queen',  storage: 'Hydraulic Storage', price: 65373,  originalPrice: 78500,  tag: 'Bestseller', specs: { type: '3/4th Hydraulic Lift-On Storage', material: 'Fumed Oak & Bronze Walnut', height: '900 mm', matSize: '78 × 60 inch (1620 × 2180 mm)', length: '2180 mm', width: '1620 mm' }, description: 'The Maple Queen Bed in Fumed Oak and Bronze Walnut finish brings strength, comfort and understated luxury to your bedroom. Features 3/4th Hydraulic Lift-On Storage.' },
+
+  { id: 78, name: 'Monarch King Bed',             image: '/bed-sets/Monarch.jpg',                  type: 'Storage', size: 'King',   storage: 'Hydraulic Storage', price: 67375,  originalPrice: 81000,  tag: 'New',        specs: { type: '3/4th Hydraulic Lift-On Storage', material: 'Natural Teak', height: '1019 mm', matSize: '78 × 72 inch (1934 × 2235 mm)', length: '2235 mm', width: '1934 mm' }, description: 'The Monarch King Bed in Natural Teak finish brings a classic, warm look to your bedroom. Also available in Vermont Color. The 3/4th Hydraulic Lift-On Storage system provides convenient underbed storage for all your essentials.' },
+  { id: 79, name: 'Monarch Queen Bed',            image: '/bed-sets/Monarch.jpg',                  type: 'Storage', size: 'Queen',  storage: 'Hydraulic Storage', price: 50066,  originalPrice: 60000,  tag: 'New',        specs: { type: '3/4th Hydraulic Lift-On Storage', material: 'Natural Teak', height: '1019 mm', matSize: '78 × 60 inch (1634 × 2235 mm)', length: '2235 mm', width: '1634 mm' }, description: 'The Monarch Queen Bed in Natural Teak finish brings warmth and classic charm to your bedroom. Also available in Vermont Color. Features 3/4th Hydraulic Lift-On Storage.' },
+
+  { id: 80, name: 'Maximus King Bed',             image: '/bed-sets/Maximus.jpg',                  type: 'Storage', size: 'King',   storage: 'Hydraulic Storage', price: 73450,  originalPrice: 88000,  tag: 'Bestseller', specs: { type: '3/4th Hydraulic Lift-On Storage', material: 'Sheesham', height: '1150 mm', matSize: '78 × 72 inch (1930 × 2210 mm)', length: '2210 mm', width: '1930 mm' }, description: 'Add superb class and style to your bedroom with the elegant Maximus King Bed. The Sheesham color will enhance the aesthetics of your room. Features a cushioned headboard with storage and a 3/4th Hydraulic Lift-On Storage system for generous underbed space.' },
+  { id: 81, name: 'Maximus Queen Bed',            image: '/bed-sets/Maximus.jpg',                  type: 'Storage', size: 'Queen',  storage: 'Hydraulic Storage', price: 65620,  originalPrice: 79000,  tag: 'Bestseller', specs: { type: '3/4th Hydraulic Lift-On Storage', material: 'Sheesham', height: '1150 mm', matSize: '78 × 60 inch (1630 × 2210 mm)', length: '2210 mm', width: '1630 mm' }, description: 'The Maximus Queen Bed in Sheesham finish brings elegance and class to your bedroom. Features a cushioned headboard with storage and 3/4th Hydraulic Lift-On Storage.' },
+
+  { id: 82, name: 'Cleo King Bed',                image: '/bed-sets/Cleo.jpg',                     type: 'Storage', size: 'King',   storage: 'Hydraulic Storage', price: 65001,  originalPrice: 78000,  tag: 'New',        specs: { type: '3/4th Hydraulic Lift-On Storage', material: 'Santana Oak & Bamboo Flute', height: '950 mm', matSize: '78 × 72 inch (1900 × 2060 mm)', length: '2060 mm', width: '1900 mm' }, description: 'The Cleo King Bed exemplifies modern functionality with effortless charm. Its rich Santana Oak and Bamboo Flute finish offers a striking yet elegant appeal, seamlessly complementing any room décor. Features a classic bamboo flute headboard design and Full Hydraulic Lift-On Storage.' },
+  { id: 83, name: 'Cleo Queen Bed',               image: '/bed-sets/Cleo.jpg',                     type: 'Storage', size: 'Queen',  storage: 'Hydraulic Storage', price: 54548,  originalPrice: 65500,  tag: 'New',        specs: { type: '3/4th Hydraulic Lift-On Storage', material: 'Santana Oak & Bamboo Flute', height: '950 mm', matSize: '78 × 60 inch (1600 × 2060 mm)', length: '2060 mm', width: '1600 mm' }, description: 'The Cleo Queen Bed in Santana Oak and Bamboo Flute finish offers a striking yet elegant appeal. Features a classic bamboo flute headboard design and Hydraulic Lift-On Storage.' },
+
+  { id: 84, name: 'Asta King Bed (Box Storage)',  image: '/bed-sets/Asta.jpg',                     type: 'Storage', size: 'King',   storage: 'Box Storage',       price: 45554,  originalPrice: 55000,  tag: 'New',        specs: { type: 'Box Storage', material: 'Sheesham', matSize: '78 × 72 inch', length: '78 inch', width: '72 inch' }, description: 'The Asta King Bed with Box Storage combines a clean Sheesham finish with practical box-style underbed storage. A great value choice for those who want organized storage with a simple, no-frills approach to bedroom design.' },
+  { id: 85, name: 'Asta Queen Bed (Box Storage)', image: '/bed-sets/Asta.jpg',                     type: 'Storage', size: 'Queen',  storage: 'Box Storage',       price: 40768,  originalPrice: 49000,  tag: 'New',        specs: { type: 'Box Storage', material: 'Sheesham', matSize: '78 × 60 inch', length: '78 inch', width: '60 inch' }, description: 'The Asta Queen Bed with Box Storage in Sheesham finish offers clean design with practical box-style underbed storage.' },
+  { id: 86, name: 'Asta King Bed (No Storage)',   image: '/bed-sets/Asta.jpg',                     type: 'Simple',  size: 'King',   storage: 'No Storage',        price: 40369,  originalPrice: 48500,  tag: 'New',        specs: { type: 'Bed Without Storage', material: 'Sheesham', matSize: '78 × 72 inch', length: '78 inch', width: '72 inch' }, description: 'The Asta King Bed Without Storage offers a clean, minimalist look in Sheesham finish. Ideal for those who prefer a spacious, uncluttered bedroom setup without underbed storage.' },
+  { id: 87, name: 'Asta Queen Bed (No Storage)',  image: '/bed-sets/Asta.jpg',                     type: 'Simple',  size: 'Queen',  storage: 'No Storage',        price: 36123,  originalPrice: 43500,  tag: 'New',        specs: { type: 'Bed Without Storage', material: 'Sheesham', matSize: '78 × 60 inch', length: '78 inch', width: '60 inch' }, description: 'The Asta Queen Bed Without Storage in Sheesham finish provides a clean, minimalist look for those who prefer an uncluttered bedroom setup.' },
+
+  { id: 88, name: 'Nester King Bed',              image: '/bed-sets/Nester.jpg',                   type: 'Storage', size: 'King',   storage: 'Hydraulic Storage', price: 58813,  originalPrice: 70500,  tag: 'New',        specs: { type: '3/4th Hydraulic Lift-On Storage', material: 'Stone Grey Modern Ash & Sebastian Oak', height: '375 mm', matSize: '78 × 72 inch (1880 × 2042 mm)', length: '2042 mm', width: '1880 mm' }, description: 'The Nester King Bed pairs Stone Grey panels with warm Sebastian Oak for a light, modern vibe. With clean lines, precision-routed headboard, and ample storage, the Nester is perfect for those who value simplicity, function, and understated elegance. Available with 3/4th Hydraulic Lift-On Storage or Front Pull-Out Storage.' },
+  { id: 89, name: 'Nester Queen Bed',             image: '/bed-sets/Nester.jpg',                   type: 'Storage', size: 'Queen',  storage: 'Hydraulic Storage', price: 52336,  originalPrice: 63000,  tag: 'New',        specs: { type: '3/4th Hydraulic Lift-On Storage', material: 'Stone Grey Modern Ash & Sebastian Oak', height: '375 mm', matSize: '78 × 60 inch (1680 × 2042 mm)', length: '2042 mm', width: '1680 mm' }, description: 'The Nester Queen Bed pairs Stone Grey and Sebastian Oak for a light, modern vibe. Clean lines, precision-routed headboard, and 3/4th Hydraulic Lift-On Storage. Also available with Front Pull-Out Storage (₹50,324).' },
+  { id: 90, name: 'Nester King Bed (Pull-Out)',   image: '/bed-sets/Nester.jpg',                   type: 'Storage', size: 'King',   storage: 'Manual Storage',    price: 56332,  originalPrice: 67500,  tag: 'New',        specs: { type: 'Front Pull-Out Storage', material: 'Stone Grey Modern Ash & Sebastian Oak', height: '950 mm', matSize: '78 × 72 inch (1904 × 2053 mm)', length: '2053 mm', width: '1904 mm' }, description: 'The Nester King Bed with Front Pull-Out Storage variant pairs Stone Grey and Sebastian Oak for a modern bedroom. The front pull-out storage mechanism provides easy access to underbed storage from the foot of the bed.' },
+  { id: 91, name: 'Nester Queen Bed (Pull-Out)',  image: '/bed-sets/Nester.jpg',                   type: 'Storage', size: 'Queen',  storage: 'Manual Storage',    price: 50324,  originalPrice: 60500,  tag: 'New',        specs: { type: 'Front Pull-Out Storage', material: 'Stone Grey Modern Ash & Sebastian Oak', height: '950 mm', matSize: '78 × 60 inch (1615 × 2075 mm)', length: '2075 mm', width: '1615 mm' }, description: 'The Nester Queen Bed with Front Pull-Out Storage in Stone Grey and Sebastian Oak offers modern style with a convenient front-access storage mechanism.' },
+
+  { id: 92, name: 'Carnival King Bed',            image: '/bed-sets/Carnival.jpg',                 type: 'Storage', size: 'King',   storage: 'Hydraulic Storage', price: 55228,  originalPrice: 66500,  tag: 'Bestseller', specs: { type: '3/4th Hydraulic Lift-On Storage', material: 'Natural Wenge / Natural Teak', matSize: '78 × 72 inch', length: '78 inch', width: '72 inch' }, description: 'The Carnival King Bed is available in Natural Wenge or Natural Teak finish, bringing warmth and character to your bedroom. Choose between 3/4th Hydraulic Lift-On Storage or Box Storage. A versatile and popular design that suits a wide range of bedroom styles.' },
+  { id: 93, name: 'Carnival Queen Bed',           image: '/bed-sets/Carnival.jpg',                 type: 'Storage', size: 'Queen',  storage: 'Hydraulic Storage', price: 50564,  originalPrice: 60500,  tag: 'Bestseller', specs: { type: '3/4th Hydraulic Lift-On Storage', material: 'Natural Wenge / Natural Teak', matSize: '78 × 60 inch', length: '78 inch', width: '60 inch' }, description: 'The Carnival Queen Bed in Natural Wenge or Natural Teak finish brings warmth and character to your bedroom. Available with 3/4th Hydraulic Lift-On Storage or Box Storage.' },
+  { id: 94, name: 'Carnival King Bed (Box)',      image: '/bed-sets/Carnival.jpg',                 type: 'Storage', size: 'King',   storage: 'Box Storage',       price: 51562,  originalPrice: 62000,  tag: 'Bestseller', specs: { type: 'Box Storage', material: 'Natural Wenge / Natural Teak', matSize: '78 × 72 inch', length: '78 inch', width: '72 inch' }, description: 'The Carnival King Bed with Box Storage in Natural Wenge or Natural Teak finish offers classic style with practical underbed storage at an accessible price point.' },
+  { id: 95, name: 'Carnival Queen Bed (Box)',     image: '/bed-sets/Carnival.jpg',                 type: 'Storage', size: 'Queen',  storage: 'Box Storage',       price: 47205,  originalPrice: 56500,  tag: 'Bestseller', specs: { type: 'Box Storage', material: 'Natural Wenge / Natural Teak', matSize: '78 × 60 inch', length: '78 inch', width: '60 inch' }, description: 'The Carnival Queen Bed with Box Storage in Natural Wenge or Natural Teak finish offers classic style with practical box-type underbed storage.' },
+
+  { id: 96, name: 'Comfy King Bed',               image: '/bed-sets/Comfy.jpg',                    type: 'Storage', size: 'King',   storage: 'Hydraulic Storage', price: 58813,  originalPrice: 70500,  tag: 'New',        specs: { type: '3/4th Hydraulic Lift-On Storage', material: 'Sheesham', height: '1150 mm', matSize: '78 × 72 inch (1920 × 2210 mm)', length: '2210 mm', width: '1920 mm' }, description: 'The Comfy King Bed combines classic style with the bold look of Sheesham wood. It features a cushioned headboard for added comfort and a 3/4th Hydraulic Lift-On Storage system for generous underbed space. Black handles enhance the natural Sheesham finish for a striking aesthetic.' },
+  { id: 97, name: 'Comfy Queen Bed',              image: '/bed-sets/Comfy.jpg',                    type: 'Storage', size: 'Queen',  storage: 'Hydraulic Storage', price: 50564,  originalPrice: 60500,  tag: 'New',        specs: { type: '3/4th Hydraulic Lift-On Storage', material: 'Sheesham', height: '1150 mm', matSize: '78 × 60 inch (1620 × 2210 mm)', length: '2210 mm', width: '1620 mm' }, description: 'The Comfy Queen Bed in Sheesham finish features a cushioned headboard for added comfort and 3/4th Hydraulic Lift-On Storage. Black handles enhance the natural wood finish.' },
+
+  { id: 98, name: 'Eco King Bed',                 image: '/bed-sets/Eco.jpg',                      type: 'Storage', size: 'King',   storage: 'Hydraulic Storage', price: 55636,  originalPrice: 67000,  tag: 'New',        specs: { type: '3/4th Hydraulic Lift-On Storage', material: 'Lyon Walnut', matSize: '78 × 72 inch', length: '78 inch', width: '72 inch' }, description: 'The Eco King Bed offers smart style and practical value in a warm Lyon Walnut finish. The 3/4th Hydraulic Lift-On Storage system provides convenient underbed storage. An excellent choice for those seeking a comfortable, functional bedroom setup with a modern wood-tone aesthetic.' },
+  { id: 99, name: 'Eco Queen Bed',                image: '/bed-sets/Eco.jpg',                      type: 'Storage', size: 'Queen',  storage: 'Hydraulic Storage', price: 50819,  originalPrice: 61000,  tag: 'New',        specs: { type: '3/4th Hydraulic Lift-On Storage', material: 'Lyon Walnut', matSize: '78 × 60 inch', length: '78 inch', width: '60 inch' }, description: 'The Eco Queen Bed in Lyon Walnut finish offers smart style and practical value with 3/4th Hydraulic Lift-On Storage for convenient underbed space.' },
 ];
 
 // Stable ratings seeded by id — avoids Math.random() in render
@@ -95,7 +358,7 @@ function SpecRow({ label, value }) {
   );
 }
 
-export default function BedsPage({ onBack }) {
+export default function BedsPage({ onBack, selectedProductId }) {
   const [sortBy, setSortBy]         = useState('popularity');
   const [filterSize, setFilterSize] = useState([]);
   const [filterStore, setFilterStore] = useState([]);
@@ -103,6 +366,14 @@ export default function BedsPage({ onBack }) {
   const [priceMin, setPriceMin]     = useState('');
   const [priceMax, setPriceMax]     = useState('');
   const [selectedBed, setSelectedBed] = useState(null);
+  const [zoomImg, setZoomImg]         = useState(null);
+
+  useEffect(() => {
+    if (selectedProductId) {
+      const found = bedsData.find(b => b.id == selectedProductId || String(b.id) === String(selectedProductId));
+      if (found) setTimeout(() => setSelectedBed(found), 120);
+    }
+  }, [selectedProductId]);
   const [filterOpen, setFilterOpen] = useState(false);
   const [openSections, setOpenSections] = useState({ size: true, storage: true, tag: true, price: true });
   const [wishlist, setWishlist]     = useState([]);
@@ -228,7 +499,7 @@ export default function BedsPage({ onBack }) {
         .bp-detail-panel { background:#fff;width:min(640px,100vw);height:100vh;overflow-y:auto;
           animation:slideIn 0.32s cubic-bezier(.22,1,.36,1);position:relative; }
         @keyframes slideIn { from{transform:translateX(100%)} to{transform:translateX(0)} }
-        .bp-detail-img { width:100%;height:340px;object-fit:cover; }
+        .bp-detail-img { width:100%;height:340px;object-fit:contain;background:#f5f0e8; }
         .bp-detail-body { padding:28px 32px 48px; }
         .bp-detail-tag { font-size:0.64rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;
           padding:4px 10px;display:inline-block;margin-bottom:12px; }
@@ -381,7 +652,9 @@ export default function BedsPage({ onBack }) {
                 return (
                   <div key={bed.id} className="bp-row" onClick={() => setSelectedBed(bed)}>
                     <div className="bp-row-img-wrap">
-                      <img className="bp-row-img" src={bed.image} alt={bed.name} loading="lazy" />
+                      <img className="bp-row-img" src={bed.image} alt={bed.name} loading="lazy"
+                        style={{ cursor:'zoom-in' }}
+                        onClick={e => { e.stopPropagation(); setZoomImg({ src: bed.image, alt: bed.name }); }} />
                       <span className="bp-row-tag" style={{ background: tc.bg, color: tc.color }}>{bed.tag}</span>
                       <button className="bp-row-wish" onClick={e => handleWishlist(bed, e)}
                         style={{ color: inWl ? '#c0392b' : '#1a1714' }}>
@@ -441,7 +714,17 @@ export default function BedsPage({ onBack }) {
           <div className="bp-detail-overlay" onClick={() => setSelectedBed(null)}>
             <div className="bp-detail-panel" onClick={e => e.stopPropagation()}>
               <button className="bp-detail-close" onClick={() => setSelectedBed(null)}><X size={16}/></button>
-              <img className="bp-detail-img" src={bed.image} alt={bed.name} />
+              <div style={{ position:'relative', cursor:'zoom-in' }} onClick={() => setZoomImg({ src: bed.image, alt: bed.name })}>
+                <img className="bp-detail-img" src={bed.image} alt={bed.name} />
+                <div style={{
+                  position:'absolute', bottom:10, right:10,
+                  background:'rgba(0,0,0,0.45)', color:'#fff', borderRadius:'50%',
+                  width:34, height:34, display:'flex', alignItems:'center', justifyContent:'center',
+                  backdropFilter:'blur(3px)', pointerEvents:'none'
+                }}>
+                  <ZoomIn size={16}/>
+                </div>
+              </div>
               <div className="bp-detail-body">
                 <span className="bp-detail-tag" style={{ background: tc.bg, color: tc.color }}>{bed.tag}</span>
                 <h2 className="bp-detail-name">{bed.name}</h2>
@@ -486,6 +769,7 @@ export default function BedsPage({ onBack }) {
           </div>
         );
       })()}
+      {zoomImg && <ImageZoomModal src={zoomImg.src} alt={zoomImg.alt} onClose={() => setZoomImg(null)} />}
     </>
   );
 }

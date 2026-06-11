@@ -5,9 +5,22 @@ import ProductCard from '../ui/ProductCard';
 
 const tabs = ['All', 'Living Room', 'Bedroom', 'Dining', 'Outdoor'];
 
-const FeaturedProducts = () => {
+// Fix Teak Outdoor Set image (id: 5) with a real outdoor teak furniture image
+const featuredWithImages = featured.map(p =>
+  p.id === 5
+    ? { ...p, image: 'https://images.unsplash.com/photo-1600210491892-03d54079b6ac?w=500&q=80' }
+    : p
+);
+
+const FeaturedProducts = ({ onNavigate }) => {
   const [active, setActive] = useState('All');
-  const filtered = active === 'All' ? featured : featured.filter(p => p.category === active);
+  const filtered = active === 'All' ? featuredWithImages : featuredWithImages.filter(p => p.category === active);
+
+  const handleViewAll = () => {
+    if (onNavigate) {
+      onNavigate('page', 'new-arrivals', 'New Arrivals');
+    }
+  };
 
   return (
     <section id="featured" className="py-24 bg-[#FAFAF7]">
@@ -42,7 +55,10 @@ const FeaturedProducts = () => {
         </div>
 
         <div className="text-center mt-14">
-          <button className="border border-[#C9A96E] text-[#C9A96E] text-xs font-medium tracking-widest uppercase px-10 py-4 hover:bg-[#C9A96E] hover:text-white transition-all duration-300">
+          <button
+            onClick={handleViewAll}
+            className="border border-[#C9A96E] text-[#C9A96E] text-xs font-medium tracking-widest uppercase px-10 py-4 hover:bg-[#C9A96E] hover:text-white transition-all duration-300"
+          >
             View All Products
           </button>
         </div>

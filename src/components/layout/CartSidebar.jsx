@@ -2,7 +2,9 @@ import { useState } from 'react';
 import { X, Minus, Plus, Trash2, ShoppingBag, MessageCircle } from 'lucide-react';
 import { useCartStore } from '../../store/useCartStore';
 
-const WHATSAPP_NUMBER = '916372569846'; // +91 6372569846
+const WHATSAPP_NUMBER = '918917690567';
+// Automatically picks the real URL — works on localhost, LAN IP, and live domain
+const SITE_BASE_URL = typeof window !== 'undefined' ? window.location.origin : '';
 
 const CartSidebar = () => {
   const { items, isOpen, closeCart, removeItem, updateQty, total, count, clearCart } = useCartStore();
@@ -11,15 +13,30 @@ const CartSidebar = () => {
 
   const buildWhatsAppMessage = () => {
     if (items.length === 0) return '';
+
+    // Each product block: image URL on its own line so WhatsApp auto-generates a rich preview
     const lines = items.map(
       (item, i) =>
-        `${i + 1}. ${item.name} — ${fmt(item.price)} × ${item.qty} = ${fmt(item.price * item.qty)}`
+        `━━━━━━━━━━━━━━━━━━━━━━\n` +
+        `*${i + 1}. ${item.name}*\n` +
+        `🏷️ _${item.category}_\n` +
+        `💬 ${item.description ? item.description.slice(0, 120) + (item.description.length > 120 ? '...' : '') : 'Premium quality furniture'}\n` +
+        `💰 *${fmt(item.price)}* × ${item.qty} qty = *${fmt(item.price * item.qty)}*\n` +
+        `🖼️ *Product Photo* (tap to open):\n` +
+        `${SITE_BASE_URL}${item.image.startsWith('/') ? item.image : '/' + item.image}`
     );
+
     const subtotal = fmt(total());
     const msg =
-      `Hello! I'd like to place an order:\n\n` +
-      lines.join('\n') +
-      `\n\n*Total: ${subtotal}*\n\nPlease confirm availability and delivery details. Thank you!`;
+      `🛋️ *OASIS Furniture — New Order*\n` +
+      `${'━'.repeat(22)}\n\n` +
+      lines.join('\n\n') +
+      `\n\n${'━'.repeat(22)}\n` +
+      `🧾 *Total: ${subtotal}*\n` +
+      `📦 *${count()} ${count() === 1 ? 'item' : 'items'}* | 🚚 *FREE Delivery*\n\n` +
+      `Please confirm availability & arrange delivery.\n` +
+      `_Thank you for shopping with OASIS!_ 🙏`;
+
     return encodeURIComponent(msg);
   };
 
@@ -114,19 +131,26 @@ const CartSidebar = () => {
           border: 1px solid #f0ebe1;
           padding: 12px 14px;
           margin-bottom: 20px;
-          max-height: 130px;
+          max-height: 200px;
           overflow-y: auto;
         }
         .co-item-line {
           font-family: 'Jost', sans-serif;
           font-size: 0.74rem; color: #4a4340;
-          padding: 4px 0;
-          display: flex; justify-content: space-between; align-items: center;
+          padding: 8px 0;
+          display: flex; gap: 10px; align-items: flex-start;
           border-bottom: 1px solid rgba(0,0,0,0.05);
         }
         .co-item-line:last-child { border-bottom: none; }
-        .co-item-name { flex: 1; margin-right: 10px; }
-        .co-item-price { font-weight: 600; color: #1a1714; white-space: nowrap; }
+        .co-item-img {
+          width: 48px; height: 48px;
+          object-fit: cover; flex-shrink: 0;
+          border-radius: 2px;
+        }
+        .co-item-info { flex: 1; min-width: 0; }
+        .co-item-name { font-weight: 600; color: #1a1714; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .co-item-desc { font-size: 0.65rem; color: #8a8278; line-height: 1.4; margin-bottom: 3px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .co-item-price { font-weight: 600; color: #c9a96e; white-space: nowrap; font-size: 0.78rem; }
       `}</style>
 
       {isOpen && <div className="fixed inset-0 bg-black/40 z-50 backdrop-blur-sm" onClick={closeCart} />}
@@ -221,7 +245,13 @@ const CartSidebar = () => {
             <div className="co-items-preview">
               {items.map((item, i) => (
                 <div key={item.id} className="co-item-line">
-                  <span className="co-item-name">{i + 1}. {item.name} × {item.qty}</span>
+                  <img src={item.image} alt={item.name} className="co-item-img" />
+                  <div className="co-item-info">
+                    <div className="co-item-name">{item.name} × {item.qty}</div>
+                    {item.description && (
+                      <div className="co-item-desc">{item.description}</div>
+                    )}
+                  </div>
                   <span className="co-item-price">{fmt(item.price * item.qty)}</span>
                 </div>
               ))}

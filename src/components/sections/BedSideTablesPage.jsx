@@ -1,5 +1,128 @@
-import { useState, useMemo, useCallback } from 'react';
-import { ArrowLeft, Heart, ShoppingBag, SlidersHorizontal, X, ChevronDown, ChevronUp, Star } from 'lucide-react';
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import { ArrowLeft, Heart, ShoppingBag, SlidersHorizontal, X, ChevronDown, ChevronUp, Star, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
+
+/* ─────────────────────────────────────────────
+              Image Zoom Modal
+───────────────────────────────────────────── */
+function ImageZoomModal({ src, alt, onClose }) {
+  const [scale, setScale] = useState(1);
+  const [pos, setPos]     = useState({ x: 0, y: 0 });
+  const [dragging, setDragging] = useState(false);
+  const dragStart = useRef(null);
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    const fn = e => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', fn);
+    document.body.style.overflow = 'hidden';
+    return () => { window.removeEventListener('keydown', fn); document.body.style.overflow = ''; };
+  }, [onClose]);
+
+  const clampPos = (x, y, s) => {
+    const el = containerRef.current;
+    if (!el) return { x, y };
+    const { width: cw, height: ch } = el.getBoundingClientRect();
+    const maxX = Math.max(0, (cw * s - cw) / 2);
+    const maxY = Math.max(0, (ch * s - ch) / 2);
+    return { x: Math.min(maxX, Math.max(-maxX, x)), y: Math.min(maxY, Math.max(-maxY, y)) };
+  };
+
+  const zoom = (dir) => {
+    setScale(s => {
+      const ns = Math.min(4, Math.max(1, s + dir * 0.5));
+      setPos(p => clampPos(p.x, p.y, ns));
+      return ns;
+    });
+  };
+
+  const reset = () => { setScale(1); setPos({ x: 0, y: 0 }); };
+
+  const onMouseDown = e => {
+    if (scale === 1) return;
+    setDragging(true);
+    dragStart.current = { mx: e.clientX, my: e.clientY, px: pos.x, py: pos.y };
+  };
+  const onMouseMove = e => {
+    if (!dragging || !dragStart.current) return;
+    const dx = e.clientX - dragStart.current.mx;
+    const dy = e.clientY - dragStart.current.my;
+    setPos(clampPos(dragStart.current.px + dx, dragStart.current.py + dy, scale));
+  };
+  const onMouseUp = () => setDragging(false);
+
+  const onWheel = e => {
+    e.preventDefault();
+    zoom(e.deltaY < 0 ? 1 : -1);
+  };
+
+  const lastTouchDist = useRef(null);
+  const onTouchStart = e => {
+    if (e.touches.length === 2) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      lastTouchDist.current = Math.hypot(dx, dy);
+    } else if (e.touches.length === 1 && scale > 1) {
+      setDragging(true);
+      dragStart.current = { mx: e.touches[0].clientX, my: e.touches[0].clientY, px: pos.x, py: pos.y };
+    }
+  };
+  const onTouchMove = e => {
+    if (e.touches.length === 2) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const dist = Math.hypot(dx, dy);
+      if (lastTouchDist.current) {
+        const delta = (dist - lastTouchDist.current) / 80;
+        setScale(s => Math.min(4, Math.max(1, s + delta)));
+      }
+      lastTouchDist.current = dist;
+    } else if (e.touches.length === 1 && dragging && dragStart.current) {
+      const dx = e.touches[0].clientX - dragStart.current.mx;
+      const dy = e.touches[0].clientY - dragStart.current.my;
+      setPos(clampPos(dragStart.current.px + dx, dragStart.current.py + dy, scale));
+    }
+  };
+  const onTouchEnd = () => { setDragging(false); lastTouchDist.current = null; };
+
+  return (
+    <div onClick={e => { if (e.target === e.currentTarget) onClose(); }}
+      style={{ position:'fixed', inset:0, zIndex:9999, background:'rgba(0,0,0,0.92)',
+        display:'flex', alignItems:'center', justifyContent:'center' }}>
+      <div style={{ position:'absolute', top:16, right:16, display:'flex', gap:8, zIndex:10 }}>
+        {[{ icon:<ZoomIn size={18}/>, fn:()=>zoom(1), title:'Zoom In' },
+          { icon:<ZoomOut size={18}/>, fn:()=>zoom(-1), title:'Zoom Out' },
+          { icon:<RotateCcw size={16}/>, fn:reset, title:'Reset' },
+          { icon:<X size={18}/>, fn:onClose, title:'Close', hoverBg:'rgba(220,60,60,0.55)' }
+        ].map(({icon,fn,title,hoverBg},i) => (
+          <button key={i} onClick={fn} title={title}
+            style={{ width:40, height:40, borderRadius:'50%', background:'rgba(255,255,255,0.15)', border:'none',
+              color:'#fff', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center',
+              backdropFilter:'blur(4px)', transition:'background 0.2s' }}
+            onMouseEnter={e=>e.currentTarget.style.background=hoverBg||'rgba(255,255,255,0.28)'}
+            onMouseLeave={e=>e.currentTarget.style.background='rgba(255,255,255,0.15)'}>
+            {icon}
+          </button>
+        ))}
+      </div>
+      <div style={{ position:'absolute', bottom:24, left:'50%', transform:'translateX(-50%)',
+        background:'rgba(255,255,255,0.12)', color:'#fff', fontSize:'0.72rem', letterSpacing:'0.10em',
+        padding:'6px 16px', borderRadius:20, backdropFilter:'blur(4px)', pointerEvents:'none',
+        textTransform:'uppercase', fontFamily:"'Jost',sans-serif" }}>
+        {scale === 1 ? 'Scroll or tap + to zoom' : `Drag to pan · ${Math.round(scale*100)}%`}
+      </div>
+      <div ref={containerRef}
+        onMouseDown={onMouseDown} onMouseMove={onMouseMove} onMouseUp={onMouseUp} onMouseLeave={onMouseUp}
+        onWheel={onWheel} onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
+        style={{ width:'90vw', height:'90vh', display:'flex', alignItems:'center', justifyContent:'center',
+          overflow:'hidden', cursor: scale>1 ? (dragging?'grabbing':'grab') : 'zoom-in' }}>
+        <img src={src} alt={alt} draggable={false}
+          style={{ maxWidth:'100%', maxHeight:'100%', objectFit:'contain',
+            transform:`scale(${scale}) translate(${pos.x/scale}px,${pos.y/scale}px)`,
+            transition: dragging?'none':'transform 0.25s cubic-bezier(.22,1,.36,1)', userSelect:'none' }}/>
+      </div>
+    </div>
+  );
+}
 import { useCartStore } from '../../store/useCartStore';
 import { useWishlistStore } from '../../store/useWishlistStore';
 import { useToastStore } from '../../store/useToastStore';
@@ -209,14 +332,22 @@ function SpecRow({ label, value }) {
   );
 }
 
-export default function BedSideTablesPage({ onBack }) {
+export default function BedSideTablesPage({ onBack, selectedProductId }) {
   const [sortBy, setSortBy]         = useState('popularity');
   const [filterTag, setFilterTag]   = useState([]);
   const [priceMin, setPriceMin]     = useState('');
   const [priceMax, setPriceMax]     = useState('');
   const [filterOpen, setFilterOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
+  const [zoomImg, setZoomImg]           = useState(null);
   const [openSections, setOpenSections] = useState({ tag: true, price: true });
+
+  useEffect(() => {
+    if (selectedProductId) {
+      const found = bedSideTablesData.find(b => String(b.id) === String(selectedProductId));
+      if (found) setTimeout(() => setSelectedItem(found), 120);
+    }
+  }, [selectedProductId]);
 
   // FIX: use correct store method names (addItem, not addToCart)
   const addItem      = useCartStore(s => s.addItem);
@@ -474,7 +605,9 @@ export default function BedSideTablesPage({ onBack }) {
                 return (
                   <div key={item.id} className="bp-row" onClick={() => setSelectedItem(item)}>
                     <div className="bp-row-img-wrap">
-                      <img className="bp-row-img" src={item.image} alt={item.name} loading="lazy" />
+                      <img className="bp-row-img" src={item.image} alt={item.name} loading="lazy"
+                        style={{ cursor:'zoom-in' }}
+                        onClick={e => { e.stopPropagation(); setZoomImg({ src: item.image, alt: item.name }); }} />
                       <span className="bp-row-tag" style={{ background: tc.bg, color: tc.color }}>{item.tag}</span>
                       <button className="bp-row-wish" onClick={e => handleWishlist(item, e)}
                         style={{ color: inWl ? '#c0392b' : '#1a1714' }}>
@@ -534,7 +667,15 @@ export default function BedSideTablesPage({ onBack }) {
           <div className="bp-detail-overlay" onClick={() => setSelectedItem(null)}>
             <div className="bp-detail-panel" onClick={e => e.stopPropagation()}>
               <button className="bp-detail-close" onClick={() => setSelectedItem(null)}><X size={16}/></button>
-              <img className="bp-detail-img" src={item.image} alt={item.name} />
+              <div style={{ position:'relative', cursor:'zoom-in' }} onClick={() => setZoomImg({ src: item.image, alt: item.name })}>
+                <img className="bp-detail-img" src={item.image} alt={item.name} />
+                <div style={{ position:'absolute', bottom:10, right:10, background:'rgba(0,0,0,0.45)',
+                  color:'#fff', borderRadius:'50%', width:34, height:34,
+                  display:'flex', alignItems:'center', justifyContent:'center',
+                  backdropFilter:'blur(3px)', pointerEvents:'none' }}>
+                  <ZoomIn size={16}/>
+                </div>
+              </div>
               <div className="bp-detail-body">
                 <span className="bp-detail-tag" style={{ background: tc.bg, color: tc.color }}>{item.tag}</span>
                 <h2 className="bp-detail-name">{item.name}</h2>
@@ -576,6 +717,7 @@ export default function BedSideTablesPage({ onBack }) {
           </div>
         );
       })()}
+      {zoomImg && <ImageZoomModal src={zoomImg.src} alt={zoomImg.alt} onClose={() => setZoomImg(null)} />}
     </>
   );
 }
